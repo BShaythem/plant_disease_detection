@@ -1,0 +1,37 @@
+# Python
+ml/.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Models — binary weights are fetched via scripts (never commit)
+models/**/*.onnx
+models/**/*.onnx.data
+models/**/*.onnx_data
+models/**/*.gguf
+models/**/*.bin
+*.gguf
+*.onnx
+*.onnx_data
+*.bin
+
+# Built databases (generated artifacts)
+*.db
+*.sqlite
+*.sqlite3
+!ml/db/*.sql
+
+# Node / Expo
+app/node_modules/
+app/.expo/
+app/dist/
+app/android/
+app/ios/
+*.log
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store

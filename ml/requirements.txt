@@ -1,0 +1,26 @@
+# Core
+numpy>=1.26,<2.2
+pillow>=10.0
+
+# ONNX — vision model validation + embedding export
+onnx>=1.16
+onnxruntime>=1.18
+optimum[onnxruntime]>=1.20
+
+# Embeddings / tokenizers
+sentence-transformers>=3.0
+transformers>=4.44
+tokenizers>=0.19
+
+# Content pipeline
+pyyaml>=6.0
+tqdm>=4.66
+pandas>=2.2
+python-frontmatter>=1.1
+
+# Model fetching
+huggingface_hub>=0.24
+
+# Dev
+pytest>=8.0
+jupyter>=1.0
