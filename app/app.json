@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
-
     "ios": {
       "supportsTablet": true
     },
@@ -31,7 +30,8 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200
         }
-      ]
+      ],
+      "onnxruntime-react-native"
     ]
   }
 }
