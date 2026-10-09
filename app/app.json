@@ -15,7 +15,8 @@
         "backgroundColor": "#2E4423",
         "foregroundImage": "./assets/images/adaptive-icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.Olive_care"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -29,6 +30,12 @@
           "backgroundColor": "#2E4423",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200
+        }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "withSQLiteVecExtension": true
         }
       ],
       "onnxruntime-react-native"
