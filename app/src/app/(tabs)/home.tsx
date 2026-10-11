@@ -196,6 +196,26 @@ export default function HomeScreen() {
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </View>
               </TouchableOpacity>
+
+              {/* Ask Olive AI Directly (No photo required) */}
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.chatBtn]}
+                onPress={() => router.push('/chat')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.chatBtnContent}>
+                  <View style={[styles.btnIconCircle, styles.chatIconCircle]}>
+                    <Ionicons name="chatbubbles" size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.btnTextCol}>
+                    <Text style={styles.btnTextDark}>Ask Olive AI Assistant</Text>
+                    <Text style={styles.btnSubtextDark}>Direct consultation without photo</Text>
+                  </View>
+                  <View style={styles.aiTag}>
+                    <Text style={styles.aiTagText}>Tier 1</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Quick helper note */}
@@ -503,6 +523,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 1,
+  },
+  chatBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.oliveSage,
+    backgroundColor: colors.oliveSoftBg,
+  },
+  chatBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  chatIconCircle: {
+    backgroundColor: '#FFFFFF',
+  },
+  aiTag: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: borderRadius.sm,
+  },
+  aiTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   securityRow: {
     flexDirection: 'row',

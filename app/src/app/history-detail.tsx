@@ -256,6 +256,41 @@ export default function HistoryDetailScreen() {
             </View>
           )}
 
+          {/* Discuss with Olive AI Assistant */}
+          <TouchableOpacity
+            style={styles.chatConsultBtn}
+            onPress={() => {
+              router.push({
+                pathname: '/chat',
+                params: {
+                  sessionId: scan.id,
+                  diseaseName: scan.diseaseName,
+                  classLabel:
+                    scan.classLabel ||
+                    (scan.status === 'healthy'
+                      ? 'Healthy'
+                      : scan.diseaseName.toLowerCase().includes('mite')
+                      ? 'aculus_olive'
+                      : 'olivepeacockspot'),
+                  confidence: scan.confidence.toString(),
+                  imageUri: scan.imageUri,
+                },
+              });
+            }}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[colors.primary, colors.primaryDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.chatConsultGradient}
+            >
+              <MaterialCommunityIcons name="chat-processing" size={20} color={colors.gold} />
+              <Text style={styles.chatConsultText}>Discuss with Olive AI Assistant</Text>
+              <Ionicons name="sparkles" size={16} color={colors.gold} />
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* Action Buttons Row */}
           <View style={styles.footerButtons}>
             <TouchableOpacity style={styles.editFullBtn} onPress={handleOpenEdit} activeOpacity={0.85}>
@@ -578,6 +613,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     lineHeight: 18,
+  },
+  chatConsultBtn: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    marginTop: spacing.md,
+    ...shadows.soft,
+  },
+  chatConsultGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+  },
+  chatConsultText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   footerButtons: {
     flexDirection: 'row',

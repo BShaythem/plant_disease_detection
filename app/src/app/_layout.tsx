@@ -25,6 +25,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="chat"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
           name="history-detail"
           options={{
             headerShown: false,

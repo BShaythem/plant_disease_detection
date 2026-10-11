@@ -19,7 +19,10 @@ import { colors, spacing, borderRadius, shadows, typography } from '../constants
 import { ScanResult } from '../types';
 import { MOCK_DISEASES } from '../utils/mockData';
 import { saveScanResult } from '../utils/historyStorage';
-import { LeafImage } from '../components/LeafImage';
+import { LeafImage, SAMPLE_ASSETS } from '../components/LeafImage';
+import { classifyOliveLeaf } from '../services/vision';
+import { getDiseaseByLabel, getDiseaseDoc, createSession, saveImage, saveDiagnosis } from '../services/db';
+import { Asset } from 'expo-asset';
 
 export default function ScannerScreen() {
   const params = useLocalSearchParams<{ imageUri?: string; source?: string }>();
@@ -87,37 +90,117 @@ export default function ScannerScreen() {
     };
   }, [isScanning]);
 
-  // Execute diagnostic scan workflow
-  const runDiagnosticScan = (targetUri: string) => {
+  // Execute diagnostic scan workflow with real ONNX Vision Inference
+  const runDiagnosticScan = async (targetUri: string) => {
     setIsScanning(true);
     setScanResult(null);
     setIsSaved(false);
 
-    setScanStep('Detecting leaf margins & surface...');
+    setScanStep('Preprocessing leaf image (224x224 RGB)...');
 
-    const timer1 = setTimeout(() => {
-      setScanStep('Scanning for fungal lesions & halos...');
-    }, 800);
+    try {
+      // 1. Resolve bundled sample asset if targetUri is a sample key
+      let resolvedUri = targetUri;
+      const sampleKey = targetUri.toLowerCase().trim();
+      if (SAMPLE_ASSETS[sampleKey]) {
+        const asset = Asset.fromModule(SAMPLE_ASSETS[sampleKey]);
+        await asset.downloadAsync();
+        resolvedUri = asset.localUri || asset.uri;
+      }
 
-    const timer2 = setTimeout(() => {
-      setScanStep('Cross-referencing Olive Pathology Database...');
-    }, 1600);
+      setScanStep('Running MobileNetV4 ONNX classification...');
 
-    const timer3 = setTimeout(() => {
-      // =========================================================================
-      // TODO: CALL REAL AI / COMPUTER VISION MODEL HERE
-      // -------------------------------------------------------------------------
-      // Step 1: Preprocess `targetUri` (resize, normalize RGB values, format tensor).
-      // Step 2: Feed input into trained TensorFlow Lite / ONNX Mobile model or call
-      //         backend vision inference endpoint:
-      //         POST /api/v1/diagnose-olive-leaf with multipart/form-data image.
-      // Step 3: Parse predicted class index, softmax confidence scores, and
-      //         localized pathogen bounding boxes.
-      // =========================================================================
+      // 2. Run real ONNX vision classification
+      const prediction = await classifyOliveLeaf(resolvedUri);
 
-      // For mock demonstration, pick a realistic olive disease profile
-      const randomIndex = Math.floor(Math.random() * MOCK_DISEASES.length);
-      const chosen = MOCK_DISEASES[randomIndex];
+      setScanStep('Consulting verified Olive Pathology Database...');
+
+      // 3. Persist to SQLite app.db
+      const isHealthy = prediction.status === 'healthy';
+      const session = await createSession(
+        isHealthy ? 'Healthy Olive Foliage' : prediction.diseaseName
+      );
+      const savedImage = await saveImage({
+        sessionId: session.id,
+        relPath: targetUri,
+      });
+      await saveDiagnosis({
+        imageId: savedImage.id,
+        classLabel: prediction.classLabel,
+        confidence: prediction.confidence,
+        topkJson: JSON.stringify(prediction.topK),
+        modelVersion: 'mobilenetv4_conv_small_fp32',
+        latencyMs: prediction.latencyMs,
+      });
+
+      // 4. Default fields for Healthy leaf
+      let scientificName = 'Olea europaea';
+      let severity: 'None' | 'Low' | 'Moderate' | 'High' = 'None';
+      let description =
+        'Leaf displays healthy vegetative state with balanced chlorophyll distribution and no detected fungal or acarine infection.';
+      let symptoms: string[] = [
+        'Uniform green coloration across upper and lower epidermis',
+        'Intact leaf margins and healthy waxy cuticle',
+        'Absence of circular fungal lesions or bronze mite rusting',
+      ];
+      let recommendedTreatments: string[] = [
+        'No fungicide or miticide treatment required',
+        'Maintain balanced drip irrigation based on seasonal weather',
+        'Periodically inspect lower and inner canopy branches',
+      ];
+      let preventiveMeasures: string[] = [
+        'Ensure open canopy architecture through annual pruning for sunlight penetration',
+        'Avoid excessive nitrogen fertilization to discourage pest attraction',
+        'Monitor foliage humidity after extended spring and autumn rain events',
+      ];
+
+      // 5. Look up knowledge.db if a pathogen was detected
+      if (!isHealthy) {
+        severity = prediction.confidence > 85 ? 'High' : prediction.confidence > 60 ? 'Moderate' : 'Low';
+
+        const diseaseRecord = await getDiseaseByLabel(prediction.classLabel);
+        if (diseaseRecord) {
+          scientificName = diseaseRecord.scientific_name || 'Olive pathogen';
+          const doc = await getDiseaseDoc(diseaseRecord.id);
+          if (doc && doc.content_md) {
+            description = doc.content_md.slice(0, 280) + '...';
+          }
+        }
+
+        if (prediction.classLabel === 'olivepeacockspot') {
+          symptoms = [
+            'Dark circular sooty lesions (peacock eye spots) on upper leaf surfaces',
+            'Yellow chlorotic halos surrounding lesions during active fungal sporulation',
+            'Premature leaf drop leading to twig dieback in dense, shaded canopy',
+          ];
+          recommendedTreatments = [
+            'Apply preventive copper-based spray (Bordeaux mixture or copper hydroxide) in autumn before rain',
+            'Consider early spring booster copper spray if winter conditions were mild and humid',
+            'Prune dense interior branches to reduce humidity and accelerate leaf drying',
+          ];
+          preventiveMeasures = [
+            'Avoid overhead irrigation that wets leaf surfaces',
+            'Rake and dispose of heavily infected fallen leaves beneath trees',
+            'Plant resistant olive cultivars in low-lying, fog-prone orchard blocks',
+          ];
+        } else if (prediction.classLabel === 'aculus_olive') {
+          symptoms = [
+            'Silvering, bronzing, and rusty discoloration along lower leaf surface',
+            'Curling, cupping, or deformation of tender young spring flushes',
+            'Premature flower drop and reduced fruit set on infested shoots',
+          ];
+          recommendedTreatments = [
+            'Apply wettable sulfur or agricultural mineral oil during early spring shoot growth',
+            'Time applications when mite populations start migrating to tender new leaves',
+            'Conserve predatory mites (Phytoseiidae) by avoiding broad-spectrum synthetic pyrethroids',
+          ];
+          preventiveMeasures = [
+            'Regularly inspect growing shoot tips with a 10x–20x hand lens in spring',
+            'Avoid excessive nitrogen applications which stimulate succulent mite-favored growth',
+            'Ensure adequate irrigation to mitigate tree drought stress',
+          ];
+        }
+      }
 
       const now = new Date();
       const formattedDate =
@@ -132,36 +215,37 @@ export default function ScannerScreen() {
           minute: '2-digit',
         });
 
-      const mockDiagnostic: ScanResult = {
-        id: 'scan-' + Date.now(),
+      const diagnosticResult: ScanResult = {
+        id: session.id,
         imageUri: targetUri,
-        diseaseName: chosen.diseaseName,
-        scientificName: chosen.scientificName,
-        confidence: chosen.confidence,
-        status: chosen.status,
-        severity: chosen.severity,
+        diseaseName: prediction.diseaseName,
+        scientificName,
+        classLabel: prediction.classLabel,
+        confidence: prediction.confidence,
+        status: prediction.status,
+        severity,
         date: formattedDate,
-        description: chosen.description,
-        userNote: chosen.userNote || 'Field scan captured by grower.',
-        symptoms: chosen.symptoms,
-        recommendedTreatments: chosen.recommendedTreatments,
-        preventiveMeasures: chosen.preventiveMeasures,
+        description,
+        userNote: `ONNX classification (${prediction.classLabel}) in ${prediction.latencyMs}ms.`,
+        symptoms,
+        recommendedTreatments,
+        preventiveMeasures,
       };
 
-      setScanResult(mockDiagnostic);
+      setScanResult(diagnosticResult);
       setIsScanning(false);
-    }, 2400);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
+    } catch (error) {
+      console.error('[Scanner] Inference error:', error);
+      Alert.alert(
+        'Inference Failed',
+        'Could not complete vision classification: ' + (error as Error).message
+      );
+      setIsScanning(false);
+    }
   };
 
   useEffect(() => {
-    const cleanup = runDiagnosticScan(imageUri);
-    return cleanup;
+    runDiagnosticScan(imageUri);
   }, [imageUri]);
 
   // Retake photo action
@@ -318,10 +402,14 @@ export default function ScannerScreen() {
                 style={[
                   styles.loadingBarProgress,
                   {
-                    width: scanLineAnim.interpolate({
-                      inputRange: [0, 260],
-                      outputRange: ['20%', '95%'],
-                    }),
+                    transform: [
+                      {
+                        scaleX: scanLineAnim.interpolate({
+                          inputRange: [0, 260],
+                          outputRange: [0.15, 0.98],
+                        }),
+                      },
+                    ],
                   },
                 ]}
               />
@@ -375,19 +463,7 @@ export default function ScannerScreen() {
                 </View>
               </View>
 
-              {/* Clinical Symptoms */}
-              <View style={styles.infoBlock}>
-                <View style={styles.infoBlockHeader}>
-                  <Ionicons name="eye-outline" size={18} color={colors.primary} />
-                  <Text style={styles.infoBlockTitle}>Observed Symptoms</Text>
-                </View>
-                {scanResult.symptoms.map((symptom, idx) => (
-                  <View key={idx} style={styles.bulletRow}>
-                    <Text style={styles.bulletDot}>•</Text>
-                    <Text style={styles.bulletText}>{symptom}</Text>
-                  </View>
-                ))}
-              </View>
+
 
               {/* Recommended Treatments */}
               <View style={styles.infoBlock}>
@@ -407,6 +483,41 @@ export default function ScannerScreen() {
                   </View>
                 ))}
               </View>
+
+              {/* Discuss with Olive AI Assistant Button */}
+              <TouchableOpacity
+                style={styles.discussAiBtn}
+                onPress={() => {
+                  router.push({
+                    pathname: '/chat',
+                    params: {
+                      sessionId: scanResult.id,
+                      diseaseName: scanResult.diseaseName,
+                      classLabel:
+                        scanResult.classLabel ||
+                        (scanResult.status === 'healthy'
+                          ? 'Healthy'
+                          : scanResult.diseaseName.includes('mite')
+                          ? 'aculus_olive'
+                          : 'olivepeacockspot'),
+                      confidence: scanResult.confidence.toString(),
+                      imageUri: scanResult.imageUri,
+                    },
+                  });
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[colors.primary, colors.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.discussAiGradient}
+                >
+                  <MaterialCommunityIcons name="chat-processing" size={20} color={colors.gold} />
+                  <Text style={styles.discussAiText}>Discuss with Olive AI Assistant</Text>
+                  <Ionicons name="sparkles" size={16} color={colors.gold} />
+                </LinearGradient>
+              </TouchableOpacity>
 
               {/* Save to History Button */}
               <TouchableOpacity
@@ -640,6 +751,7 @@ const styles = StyleSheet.create({
   },
   loadingBarProgress: {
     height: '100%',
+    width: '100%',
     backgroundColor: colors.primary,
     borderRadius: 3,
   },
@@ -770,6 +882,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     lineHeight: 18,
+  },
+  discussAiBtn: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    marginTop: 14,
+    marginBottom: 8,
+    ...shadows.soft,
+  },
+  discussAiGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  discussAiText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   saveBtn: {
     borderRadius: borderRadius.md,

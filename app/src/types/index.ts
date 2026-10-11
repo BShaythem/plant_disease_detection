@@ -3,6 +3,7 @@ export interface ScanResult {
   imageUri: string;
   diseaseName: string;
   scientificName: string;
+  classLabel?: string;
   confidence: number; // e.g. 94.8
   status: 'healthy' | 'infected' | 'warning';
   severity: 'None' | 'Low' | 'Moderate' | 'High';

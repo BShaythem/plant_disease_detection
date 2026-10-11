@@ -90,6 +90,13 @@ export const borderRadius = {
 };
 
 export const shadows = {
+  small: {
+    shadowColor: '#2E4423',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   soft: {
     shadowColor: '#2E4423',
     shadowOffset: { width: 0, height: 4 },

@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography } from '../constants/theme';
+import { initDatabases } from '../services/db';
 
 // Keep native splash screen visible while loading resources
 SplashScreen.preventAutoHideAsync().catch(() => { });
@@ -18,6 +19,11 @@ export default function SplashScreenComponent() {
   const leafSpinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Initialize SQLite databases in background
+    initDatabases().catch((err) => {
+      console.error('[Splash] Database initialization error:', err);
+    });
+
     // Hide the native splash screen smoothly
     SplashScreen.hideAsync().catch(() => { });
 
